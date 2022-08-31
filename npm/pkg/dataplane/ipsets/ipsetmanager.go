@@ -31,6 +31,9 @@ type IPSetMode string
 const (
 	ApplyAllIPSets IPSetMode = "all"
 	ApplyOnNeed    IPSetMode = "on-need"
+
+	initialMaxRestoreTryCount int = 2
+	largestMaxRestoreTryCount int = 1024 // 2^10
 )
 
 var (
@@ -50,7 +53,9 @@ type IPSetManager struct {
 	emptySet   *IPSet
 	setMap     map[string]*IPSet
 	dirtyCache dirtyCacheInterface
-	ioShim     *common.IOShim
+	// maxRestoreTryCount is only used in Linux
+	maxRestoreTryCount int
+	ioShim             *common.IOShim
 	sync.RWMutex
 }
 
@@ -66,11 +71,12 @@ type IPSetManagerCfg struct {
 
 func NewIPSetManager(iMgrCfg *IPSetManagerCfg, ioShim *common.IOShim) *IPSetManager {
 	return &IPSetManager{
-		iMgrCfg:    iMgrCfg,
-		emptySet:   nil, // will be set if needed in calls to AddToLists
-		setMap:     make(map[string]*IPSet),
-		dirtyCache: newDirtyCache(),
-		ioShim:     ioShim,
+		iMgrCfg:            iMgrCfg,
+		emptySet:           nil, // will be set if needed in calls to AddToLists
+		setMap:             make(map[string]*IPSet),
+		dirtyCache:         newDirtyCache(),
+		maxRestoreTryCount: initialMaxRestoreTryCount,
+		ioShim:             ioShim,
 	}
 }
 
@@ -463,12 +469,21 @@ func (iMgr *IPSetManager) ApplyIPSets() error {
 	defer metrics.RecordIPSetExecTime(prometheusTimer) // record execution time regardless of failure
 	err := iMgr.applyIPSets()
 	if err != nil {
-		metrics.SendErrorLogAndMetric(util.IpsmID, "error: failed to apply ipsets: %s", err.Error())
+		// exponentially increase maxRestoreTryCount
+		iMgr.maxRestoreTryCount *= 2
+		if iMgr.maxRestoreTryCount > largestMaxRestoreTryCount {
+			iMgr.maxRestoreTryCount = largestMaxRestoreTryCount
+		}
+
+		metrics.SendErrorLogAndMetric(util.IpsmID, "error: failed to apply ipsets. new restore try count (linux only): %d. err: %s", iMgr.maxRestoreTryCount, err.Error())
 		return err
 	}
 
-	iMgr.clearDirtyCache()
 	// TODO could also set the number of ipsets in NPM (not necessarily in kernel) here using len(iMgr.setMap)
+	iMgr.clearDirtyCache()
+	// reset the maxRestoreTryCount
+	iMgr.maxRestoreTryCount = initialMaxRestoreTryCount
+	fmt.Println("DEBUGME applied ipsets", iMgr.maxRestoreTryCount)
 	return nil
 }
 
