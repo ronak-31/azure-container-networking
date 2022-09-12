@@ -30,7 +30,7 @@ func (dp *DataPlane) bootupDataPlane() error {
 	return nil
 }
 
-func (dp *DataPlane) refreshAllPodEndpoints() error {
+func (dp *DataPlane) refreshPodEndpoints(remoteEndpoints bool) error {
 	// NOOP in Linux
 	return nil
 }

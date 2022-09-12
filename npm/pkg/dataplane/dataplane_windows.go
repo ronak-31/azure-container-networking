@@ -45,7 +45,7 @@ func (dp *DataPlane) initializeDataPlane() error {
 	// reset endpoint cache so that netpol references are removed for all endpoints while refreshing pod endpoints
 	// no need to lock endpointCache at boot up
 	dp.endpointCache.cache = make(map[string]*npmEndpoint)
-	err = dp.refreshAllPodEndpoints()
+	err = dp.refreshPodEndpoints(refreshAllEndpoints)
 	if err != nil {
 		return err
 	}
@@ -278,11 +278,15 @@ func (dp *DataPlane) getEndpointsToApplyPolicy(policy *policies.NPMNetworkPolicy
 	return endpointList, nil
 }
 
-func (dp *DataPlane) getAllPodEndpoints() ([]hcn.HostComputeEndpoint, error) {
+func (dp *DataPlane) getPodEndpoints(remoteEndpoints bool) ([]hcn.HostComputeEndpoint, error) {
 	klog.Infof("Getting all endpoints for Network ID %s", dp.networkID)
 	endpoints, err := dp.ioShim.Hns.ListEndpointsOfNetwork(dp.networkID)
 	if err != nil {
 		return nil, err
+	}
+
+	if remoteEndpoints {
+		return endpoints, nil
 	}
 
 	localEndpoints := make([]hcn.HostComputeEndpoint, 0)
@@ -294,7 +298,7 @@ func (dp *DataPlane) getAllPodEndpoints() ([]hcn.HostComputeEndpoint, error) {
 	return localEndpoints, nil
 }
 
-// refreshAllPodEndpoints will refresh all the pod endpoints and create empty netpol references for new endpoints
+// refreshPodEndpoints will refresh all the pod endpoints and create empty netpol references for new endpoints
 /*
 Key Assumption: a new pod event (w/ IP) cannot come before HNS knows (and can tell us) about the endpoint.
 From NPM logs, it seems that endpoints are updated far earlier (several seconds) before the pod event comes in.
@@ -311,8 +315,8 @@ Why can we refresh only once before updating all pods in the updatePodCache (see
 - Again, it's ok if we try to apply on a non-existent endpoint.
 - We won't miss the endpoint (see the assumption). At the time the pod event came in (when AddToSets/RemoveFromSets were called), HNS already knew about the endpoint.
 */
-func (dp *DataPlane) refreshAllPodEndpoints() error {
-	endpoints, err := dp.getAllPodEndpoints()
+func (dp *DataPlane) refreshPodEndpoints(remoteEndpoints bool) error {
+	endpoints, err := dp.getPodEndpoints(remoteEndpoints)
 	if err != nil {
 		return err
 	}
