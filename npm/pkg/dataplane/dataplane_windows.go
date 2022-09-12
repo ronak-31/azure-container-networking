@@ -284,7 +284,14 @@ func (dp *DataPlane) getAllPodEndpoints() ([]hcn.HostComputeEndpoint, error) {
 	if err != nil {
 		return nil, err
 	}
-	return endpoints, nil
+
+	localEndpoints := make([]hcn.HostComputeEndpoint, 0)
+	for _, e := range endpoints {
+		if e.Flags == hcn.EndpointFlagsNone {
+			localEndpoints = append(localEndpoints, e)
+		}
+	}
+	return localEndpoints, nil
 }
 
 // refreshAllPodEndpoints will refresh all the pod endpoints and create empty netpol references for new endpoints
