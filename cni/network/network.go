@@ -112,10 +112,10 @@ type HoneyCombGoalState struct {
 		ContainerGroupName string `json:"ContainerGroupName"`
 		IPV6Prefix string `json:"IPV6Prefix"`
 		IPV6Gateway string `json:"IPV6Gateway"`
-		IPV4HLIPPrefix string `json:"IPV4HLIPPrefix"`
+		IPV4HLIPPrefix string `json:"HLIPv4Prefix"`
 		IPV6Address string `json:"IPV6Address"`
 		MAC string `json:"MAC"`
-		IPV4HLIPAddress string `json:"IPV4HLIPAddress"`
+		IPV4HLIPAddress string `json:"HLIPv4Address"`
 	} `json:"ContainerGroupNetworkGoalStates"`
 }
 
