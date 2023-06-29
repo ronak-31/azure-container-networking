@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/Azure/azure-container-networking/aitelemetry"
@@ -1258,18 +1259,25 @@ func convertNnsToCniResult(
 
 			intIndex := i
 			for _, ip := range ni.Ipaddresses {
+				ipAddr := net.ParseIP(ip.Ip)
 
-				ipWithPrefix := fmt.Sprintf("%s/%s", ip.Ip, ip.PrefixLength)
-				_, ipNet, err := net.ParseCIDR(ipWithPrefix)
+				var address net.IPNet
+				prefixLength, err := strconv.Atoi(ip.PrefixLength)
 				if err != nil {
-					log.Printf("Error while converting to cni result for %s operation on pod %s. %s",
-						operationName, podName, err)
+					log.Printf("Error parsing prefixLength (%s) for %s operation on pod %s, err:%s.",
+						ip.PrefixLength, operationName, podName, err)
 					continue
+				}
+
+				if ipAddr.To4() != nil {
+					address = net.IPNet{IP: ipAddr, Mask: net.CIDRMask(prefixLength, 32)}
+				} else {
+					address = net.IPNet{IP: ipAddr, Mask: net.CIDRMask(prefixLength, 128)}
 				}
 
 				gateway := net.ParseIP(ip.DefaultGateway)
 				ipConfig := &cniTypesCurr.IPConfig{
-					Address:   *ipNet,
+					Address:   address,
 					Gateway:   gateway,
 					Interface: &intIndex,
 				}
