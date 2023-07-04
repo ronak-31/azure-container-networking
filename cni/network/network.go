@@ -1261,7 +1261,6 @@ func convertNnsToCniResult(
 			for _, ip := range ni.Ipaddresses {
 				ipAddr := net.ParseIP(ip.Ip)
 
-				var address net.IPNet
 				prefixLength, err := strconv.Atoi(ip.PrefixLength)
 				if err != nil {
 					log.Printf("Error parsing prefixLength (%s) for %s operation on pod %s, err:%s.",
@@ -1269,6 +1268,7 @@ func convertNnsToCniResult(
 					continue
 				}
 
+				var address net.IPNet
 				if ipAddr.To4() != nil {
 					address = net.IPNet{IP: ipAddr, Mask: net.CIDRMask(prefixLength, 32)}
 				} else {
