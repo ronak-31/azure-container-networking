@@ -1354,11 +1354,13 @@ func convertNnsToCniResult(
 					continue
 				}
 
-				var address net.IPNet
+				address := net.IPNet{
+					IP:   ipAddr,
+					Mask: net.CIDRMask(prefixLength, 128),
+				}
+
 				if ipAddr.To4() != nil {
-					address = net.IPNet{IP: ipAddr, Mask: net.CIDRMask(prefixLength, 32)}
-				} else {
-					address = net.IPNet{IP: ipAddr, Mask: net.CIDRMask(prefixLength, 128)}
+					address.Mask = net.CIDRMask(prefixLength, 32)
 				}
 
 				gateway := net.ParseIP(ip.DefaultGateway)
