@@ -42,6 +42,8 @@ const (
 	// Supported IP version. Currently support only IPv4
 	ipamV6                = "azure-vnet-ipamv6"
 	defaultRequestTimeout = 15 * time.Second
+	ipv4FullMask          = 32
+	ipv6FullMask          = 128
 )
 
 // CNI Operation Types
@@ -1356,11 +1358,11 @@ func convertNnsToCniResult(
 
 				address := net.IPNet{
 					IP:   ipAddr,
-					Mask: net.CIDRMask(prefixLength, 128),
+					Mask: net.CIDRMask(prefixLength, ipv6FullMask),
 				}
 
 				if ipAddr.To4() != nil {
-					address.Mask = net.CIDRMask(prefixLength, 32)
+					address.Mask = net.CIDRMask(prefixLength, ipv4FullMask)
 				}
 
 				gateway := net.ParseIP(ip.DefaultGateway)
